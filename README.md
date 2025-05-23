@@ -5,4 +5,4 @@ Scripts and files for SV and MNLP analysis in PrCa patients
 
 ## CoV calculation and segmetation of regions, scripts and supplementary materials: 
 - 
-- 
+- segment_cov_short.py - getting variable segments
