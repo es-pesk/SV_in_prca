@@ -55,10 +55,15 @@ def process_chrom(args):
         start = prev = sig_pos[0]
         for p1 in sig_pos[1:]:
             if p1 - prev > max_gap:
-                seg.append(f"{chrom}\t{start}\t{prev+1}")
-                start = p1
+                #seg.append(f"{chrom}\t{start}\t{prev+1}")
+                #start = p1
+                seg_z = np.nanmean(z[(pos >= start) & (pos <= prev)])  #  средний Z-score по сегменту
+                seg.append(f\"{chrom}\\t{start}\\t{prev+1}\\t{seg_z:.6f}\") # записываем в .bed 4м столбцом
+                
             prev = p1
         seg.append(f"{chrom}\t{start}\t{prev+1}")
+
+
 
     return bg, seg
 
