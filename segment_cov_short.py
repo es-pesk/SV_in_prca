@@ -62,8 +62,7 @@ def process_chrom(args):
                 
         # финальный сегмент
         seg_z = np.nanmean(z[(pos >= start) & (pos <= prev)])
-        seg.append(f\"{chrom}\\t{start}\\t{prev+1}\\t{seg_z:.6f}\")
-                   
+        seg.append(f\"{chrom}\\t{start}\\t{prev+1}\\t{seg_z:.6f}\")       
         #seg.append(f"{chrom}\t{start}\t{prev+1}")
 
 
