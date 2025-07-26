@@ -28,8 +28,10 @@ def tsv_by_chrom(path):
 
 
 def process_chrom(args):
-    chrom, pos, cov, zthr, max_gap = args
+    chrom, pos, cov, zthr, max_gap, geno_mode, ratio_thr,
+    flank_size, flank_zmax, min_flank_bins = args
 
+    
     # 1)Z-score: медиана/MAD×1.4826 или std×1.4826
     med = np.nanmedian(cov)
     mad = np.nanmedian(np.abs(cov - med)) * 1.4826
@@ -64,15 +66,53 @@ def process_chrom(args):
         seg_z = np.nanmean(z[(pos >= start) & (pos <= prev)])
         seg.append(f\"{chrom}\\t{start}\\t{prev+1}\\t{seg_z:.6f}\")       
         #seg.append(f"{chrom}\t{start}\t{prev+1}")
+    ## блок генотипирования
+    seg_lines = []
+    for s, e in seg_coords:
+        mask_seg = (pos >= s) & (pos < e)
+        seg_z_mean = np.nanmean(z[mask_seg])
+        
+        # режим minmax
+        if geno_mode == "minmax":                       
+            seg_cov = cov[mask_seg]                     
+            mn, mx = np.nanmin(seg_cov), np.nanmax(seg_cov)  
+            metric = (mn + mx) / 2                   
+            genotype = "1/1" if np.nanmean(seg_cov) > metric else "0/1"
+            
+        # режим Ratio сегмент/фланк (больше 1кб) + fallback 
+        else:
+            mask_flank = (
+                ((pos >= s - flank_size) & (pos < s)) |
+                ((pos >= e) & (pos < e + flank_size))
+            )
+            flank_z = z[mask_flank]
+            
+            bad_flank = (
+                np.count_nonzero(~np.isnan(flank_z)) < min_flank_bins or
+                np.nanmean(np.abs(flank_z)) > flank_zmax
+            )
 
+            if not bad_flank:
+                flank_mean = np.nanmean(np.abs(flank_z))
+                metric = np.abs(seg_z_mean) / flank_mean if flank_mean else np.nan
+                genotype = "1/1" if metric > ratio_thr else "0/1"
+            else:
+                seg_cov = cov[mask_seg]
+                mn, mx = np.nanmin(seg_cov), np.nanmax(seg_cov)
+                metric = (mn + mx) / 2.0
+                genotype = "1/1" if np.nanmean(seg_cov) > metric else "0/1"
+                print(f"WARN\t{chrom}:{s}-{e}\tfallback=minmax", file=sys.stdout)
 
+        seg.append(
+            f"{chrom}\t{s}\t{e}\t{seg_z_mean:.6f}\t{genotype}\t{metric:.6f}"
 
+    
     return bg, seg
 
 
 def main():
     p = argparse.ArgumentParser(
-        description="Сегменты геномного трека CoV - только Z-сегментация"
+        description="Сегменты геномного трека CoV - только Z-сегментация "
     )
     p.add_argument("cov_tsv", help="TSV: chr  pos  cov")
     p.add_argument("--bg-out", default="zscore.bedGraph",
@@ -85,13 +125,30 @@ def main():
                    help="макс. gap для объединения [default: 100]")
     p.add_argument("-t", "--threads", type=int, default=6,
                    help="число потоков (≤6) [default: 6]")
+
+    # выбор метода генотипирования
+    p.add_argument("--geno-mode", choices=["minmax", "ratio"], default="minmax",
+                   help="Как определять 0/1 vs 1/1: minmax | ratio (с fallback)")
+    p.add_argument("--ratio-threshold", type=float, default=2.0,
+                   help="Порог для ratio‑метода [2.0]")
+
+    # параметры фланков (для ratio)
+    p.add_argument("--flank-size", type=int, default=2000, help="Длина фланков для ratio, bp [2000]")
+    p.add_argument("--flank-zmax", type=float, default=1.5, help="Макс. |Z̄| во фланках, иначе fallback [1.5]")
+    p.add_argument("--min-flank-bins", type=int, default=10, help="Мин. CoV‑окон во фланке [10]")
+
+
+    
     args = p.parse_args()
 
     pool = mp.Pool(min(args.threads, 6))
     tasks = (
-        (chrom, pos, cov, args.zThreshold, args.maxGap)
-        for chrom, pos, cov in tsv_by_chrom(args.cov_tsv)
-    )
+        (chrom, pos, cov,
+            args.zThreshold, args.maxGap,
+            args.geno_mode, args.ratio_threshold,
+            args.flank_size, args.flank_zmax, args.min_flank_bins
+        )
+        for chrom, pos, cov in tsv_by_chrom(args.cov_tsv))
 
     with open(args.bg_out,  "w") as bgf, \
          open(args.bed_out, "w") as bedf:
