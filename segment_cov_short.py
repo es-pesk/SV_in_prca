@@ -104,7 +104,7 @@ def process_chrom(args):
 
 def main():
     p = argparse.ArgumentParser(
-        description="Z сегментация CoV и гомо/гетеро классификация"
+        description="Z сегментация CoV и генотипирование"
     )
     p.add_argument("cov_tsv", help="TSV: chr pos cov  (может быть .gz)")
     p.add_argument("--bg-out", default="zscore.bedGraph")
