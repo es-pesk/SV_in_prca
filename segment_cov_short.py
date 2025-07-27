@@ -73,7 +73,7 @@ def process_chrom(args):
             seg_cov = cov[mask_seg]
             mn, mx = np.nanmin(seg_cov), np.nanmax(seg_cov)
             metric = (mn + mx) / 2.0
-            genotype = "1/1" if np.nanmean(seg_cov) > metric else "0/1"
+            genotype = "0/0" if np.nanmean(seg_cov) > metric else "0/1"
 
         else:  # flank ratio + fallback
             mask_flank = (
