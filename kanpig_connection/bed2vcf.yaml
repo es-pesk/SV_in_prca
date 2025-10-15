@@ -1,0 +1,54 @@
+header:
+  - name: bed2vcfd
+    content: result of converting FC results to VCF4.2
+
+chrom:
+  value: $0
+
+pos:
+  value: $1
+
+id:
+  prefix: FlyCatcherSV_
+
+ref:
+  value: $3
+
+alt:
+  value: $4
+  options:
+    - name: A
+      description: Deletion
+    - name: C  
+      description: Deletion
+    - name: G  
+      description: Deletion
+    - name: T  
+      description: Deletion
+    - name: N  
+      description: Deletion
+
+
+info:
+  - name: SVTYPE # The name of the info field
+    value: DEL
+    number: 1
+    type: String
+    description: Type of structural variant
+  - name: SVLEN
+    value: ~min $2 $1
+    number: 1
+    type: Integer
+    description: Length of structural variant
+  - name: END
+    value: $2
+    number: 1
+    type: Integer
+    description: End position of structural variant
+
+format:
+  - name: GT
+    value: ./1
+    number: 1
+    type: String
+    description: Genotype of the sample
